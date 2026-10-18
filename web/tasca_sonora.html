@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tasca Sonora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f4; --panel: #ffffff; --ink: #16202b; --muted: #5b6875;
+    --line: #d5dbe1; --brass: #a8761d; --brass-soft: #f3e4c4; --ok: #2f7d4f; --err: #b3372f;
+    --wave: #9aa6b2;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11171e; --panel: #1a222c; --ink: #e8edf2; --muted: #93a0ad;
+      --line: #2c3743; --brass: #e0b04f; --brass-soft: #3a3020; --ok: #5cc38a; --err: #ef7d73;
+      --wave: #4d5b69;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11171e; --panel: #1a222c; --ink: #e8edf2; --muted: #93a0ad;
+    --line: #2c3743; --brass: #e0b04f; --brass-soft: #3a3020; --ok: #5cc38a; --err: #ef7d73;
+    --wave: #4d5b69;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    font-size: 17px; line-height: 1.5;
+  }
+  main { max-width: 620px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+  .ring {
+    width: 56px; height: 56px; flex: none; border-radius: 50%;
+    border: 6px solid var(--brass); position: relative;
+  }
+  .ring::after {
+    content: ""; position: absolute; width: 20px; height: 26px; border-radius: 6px;
+    background: var(--ink); right: -18px; bottom: -22px; transform: rotate(-20deg);
+  }
+  h1 { font-size: 2rem; line-height: 1.1; margin: 0; font-weight: 800; letter-spacing: -0.02em; }
+  .sub { margin: 4px 0 0; color: var(--muted); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; margin-bottom: 14px;
+  }
+  section h2 { display: flex; gap: 12px; align-items: baseline; margin: 0 0 12px; font-size: 1.15rem; font-weight: 600; }
+  section h2 span { color: var(--brass); font-weight: 800; }
+  section.off { opacity: .5; pointer-events: none; }
+
+  button, .file-btn {
+    font: inherit; font-weight: 600; border-radius: 10px; padding: 11px 18px; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--ink); color: var(--panel);
+  }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible, .file-btn:focus-within, input:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+  .file-btn { display: inline-block; position: relative; }
+  .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  .wave-wrap { margin: 16px 0 12px; }
+  canvas { width: 100%; height: 110px; display: block; border-radius: 10px; background: var(--bg); }
+  label { display: block; font-size: .92rem; color: var(--muted); margin-top: 10px; }
+  label b { color: var(--ink); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--brass); }
+  audio { width: 100%; margin-top: 12px; }
+  .check { display: flex; gap: 8px; align-items: center; color: var(--ink); }
+
+  .bar { height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; margin-top: 14px; }
+  .bar div { height: 100%; width: 0; background: var(--brass); transition: width .15s; }
+  .msg { margin: 12px 0 0; min-height: 1.5em; }
+  .msg.ok { color: var(--ok); } .msg.err { color: var(--err); }
+  .note { background: var(--brass-soft); border-radius: 10px; padding: 12px 14px; font-size: .95rem; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="ring" aria-hidden="true"></div>
+    <div>
+      <h1>Tasca Sonora</h1>
+      <p class="sub">Manda un suono al portachiavi o scarica quello che hai registrato.</p>
+    </div>
+  </header>
+
+  <p id="unsupported" class="note hide">Questo browser non supporta il Bluetooth web. Usa Chrome o Edge su computer o Android. Su iPhone serve l'app Bluefy.</p>
+
+  <section id="s1">
+    <h2><span>1</span>Scegli il suono</h2>
+    <div class="row">
+      <label class="file-btn">Scegli un file audio<input id="file" type="file" accept="audio/*"></label>
+      <span id="fname" class="sub"></span>
+    </div>
+  </section>
+
+  <section id="s2" class="off">
+    <h2><span>2</span>Taglia e ascolta</h2>
+    <div class="wave-wrap"><canvas id="wave" width="1160" height="220" aria-label="Forma d'onda con la parte selezionata evidenziata"></canvas></div>
+    <label for="start">Inizio: <b id="startVal">0,0 s</b></label>
+    <input id="start" type="range" min="0" max="0" step="0.1" value="0">
+    <label for="dur">Durata: <b id="durVal">5,0 s</b></label>
+    <input id="dur" type="range" min="0.5" max="30" step="0.1" value="5">
+    <label class="check"><input id="norm" type="checkbox" checked> Porta il volume al massimo senza distorcere</label>
+    <audio id="preview" controls></audio>
+    <p class="sub">L'anteprima è esattamente quello che suonerà il portachiavi (16 kHz, mono).</p>
+  </section>
+
+  <section id="s3">
+    <h2><span>3</span>Collega il portachiavi</h2>
+    <p class="sub">Tieni premuto il tasto per 2 secondi finché il LED lampeggia blu, poi premi Collega.</p>
+    <div class="row">
+      <button id="connect">Collega</button>
+      <button id="disconnect" class="ghost hide">Scollega</button>
+      <span id="devState" class="sub"></span>
+    </div>
+    <div id="volBox" class="hide">
+      <label for="vol">Volume del portachiavi: <b id="volVal">70</b></label>
+      <input id="vol" type="range" min="10" max="100" step="5" value="70">
+    </div>
+  </section>
+
+  <section id="s4" class="off">
+    <h2><span>4</span>Invia</h2>
+    <div class="row">
+      <button id="send">Invia il suono</button>
+      <button id="play" class="ghost">Fai suonare il portachiavi</button>
+    </div>
+    <div class="bar"><div id="prog"></div></div>
+    <p id="msg" class="msg" role="status"></p>
+  </section>
+
+  <section id="s5" class="off">
+    <h2><span>5</span>Registrazione dal portachiavi</h2>
+    <p class="sub">Tieni premuto il tasto laterale per registrare. Qui la scarichi o la usi come suono del tasto frontale.</p>
+    <p id="recInfo">Collega il portachiavi per vedere la registrazione.</p>
+    <div class="row">
+      <button id="recDownload">Scarica sul telefono</button>
+      <button id="recPlay" class="ghost">Ascolta sul portachiavi</button>
+      <button id="recToSound" class="ghost">Usa come suono del tasto</button>
+    </div>
+    <div class="bar"><div id="recProg"></div></div>
+    <p id="recMsg" class="msg" role="status"></p>
+    <div id="recResult" class="hide">
+      <audio id="recAudio" controls></audio>
+      <p><a id="recLink" class="file-btn" download>Salva il file WAV</a></p>
+    </div>
+  </section>
+</main>
+
+<script>
+const SVC    = "8f1d0000-6c2a-4b8e-9d3f-2a7c5e1b4d60";
+const CTRL   = "8f1d0001-6c2a-4b8e-9d3f-2a7c5e1b4d60";
+const DATA   = "8f1d0002-6c2a-4b8e-9d3f-2a7c5e1b4d60";
+const STATUS = "8f1d0003-6c2a-4b8e-9d3f-2a7c5e1b4d60";
+const INFO   = "8f1d0004-6c2a-4b8e-9d3f-2a7c5e1b4d60";
+const DL     = "8f1d0005-6c2a-4b8e-9d3f-2a7c5e1b4d60";
+const RATE = 16000;
+const STATUS_TEXT = {
+  0x11: "Suono salvato sul portachiavi.",
+  0x20: "Dimensione non valida: prova con un suono più corto.",
+  0x21: "Dati arrivati corrotti. Avvicina il telefono e invia di nuovo.",
+  0x22: "Errore di scrittura nella memoria del portachiavi.",
+  0x23: "Il portachiavi non era pronto. Invia di nuovo.",
+  0x24: "Il portachiavi è occupato (suona, registra o sta inviando). Riprova tra poco.",
+  0x25: "Sul portachiavi non c'è nessuna registrazione."
+};
+
+const $ = id => document.getElementById(id);
+const fmt = s => s.toFixed(1).replace(".", ",") + " s";
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+let decoded = null, pcm = null, pcmTimer = null;
+let dev = null, ch = {}, info = null, statusWaiters = [], lastStatusView = null;
+let dlBuf = null, dlPos = 0;
+
+if (!navigator.bluetooth) $("unsupported").classList.remove("hide");
+
+// ---------- Audio ----------
+$("file").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $("fname").textContent = f.name;
+  try {
+    const ctx = new AudioContext();
+    decoded = await ctx.decodeAudioData(await f.arrayBuffer());
+    ctx.close();
+  } catch {
+    $("fname").textContent = "Questo file non si riesce a leggere. Prova un mp3, wav o m4a.";
+    return;
+  }
+  $("start").max = Math.max(0, decoded.duration - 0.5).toFixed(1);
+  $("start").value = 0;
+  $("dur").value = Math.min(5, decoded.duration).toFixed(1);
+  $("s2").classList.remove("off");
+  schedulePcm();
+});
+
+["start", "dur", "norm"].forEach(id => $(id).addEventListener("input", schedulePcm));
+
+function schedulePcm() {
+  $("startVal").textContent = fmt(+$("start").value);
+  $("durVal").textContent = fmt(+$("dur").value);
+  drawWave();
+  clearTimeout(pcmTimer);
+  pcmTimer = setTimeout(buildPcm, 250);
+}
+
+async function buildPcm() {
+  if (!decoded) return;
+  const start = +$("start").value;
+  const dur = Math.min(+$("dur").value, decoded.duration - start);
+  const frames = Math.max(1, Math.floor(dur * RATE));
+  const off = new OfflineAudioContext(1, frames, RATE);
+  const src = off.createBufferSource();
+  src.buffer = decoded;
+  src.connect(off.destination);
+  src.start(0, start, dur);
+  const data = (await off.startRendering()).getChannelData(0);
+
+  let gain = 1;
+  if ($("norm").checked) {
+    let peak = 0;
+    for (const v of data) peak = Math.max(peak, Math.abs(v));
+    if (peak > 0.001) gain = Math.min(0.95 / peak, 8);
+  }
+  const fadeIn = Math.floor(RATE * 0.005), fadeOut = Math.floor(RATE * 0.02);
+  const out = new Int16Array(frames);
+  for (let i = 0; i < frames; i++) {
+    let v = data[i] * gain;
+    if (i < fadeIn) v *= i / fadeIn;
+    if (i > frames - fadeOut) v *= (frames - i) / fadeOut;
+    out[i] = Math.max(-32768, Math.min(32767, Math.round(v * 32767)));
+  }
+  pcm = new Uint8Array(out.buffer);
+  $("preview").src = URL.createObjectURL(wavBlob(out));
+  updateSendState();
+}
+
+function wavBlob(samples, rate = RATE) {
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, "RIFF"); v.setUint32(4, 36 + samples.length * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, "data"); v.setUint32(40, samples.length * 2, true);
+  new Int16Array(buf, 44).set(samples);
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+function drawWave() {
+  const c = $("wave"), g = c.getContext("2d"), W = c.width, H = c.height;
+  const css = getComputedStyle(document.documentElement);
+  g.clearRect(0, 0, W, H);
+  if (!decoded) return;
+  const d = decoded.getChannelData(0), step = Math.ceil(d.length / W);
+  const t0 = +$("start").value, t1 = t0 + +$("dur").value;
+  const x0 = t0 / decoded.duration * W, x1 = Math.min(W, t1 / decoded.duration * W);
+  g.fillStyle = css.getPropertyValue("--brass-soft").trim();
+  g.fillRect(x0, 0, x1 - x0, H);
+  for (let x = 0; x < W; x++) {
+    let mn = 1, mx = -1;
+    for (let i = x * step; i < Math.min(d.length, (x + 1) * step); i++) { mn = Math.min(mn, d[i]); mx = Math.max(mx, d[i]); }
+    g.fillStyle = (x >= x0 && x <= x1) ? css.getPropertyValue("--brass").trim() : css.getPropertyValue("--wave").trim();
+    g.fillRect(x, (1 - mx) * H / 2, 1, Math.max(1, (mx - mn) * H / 2));
+  }
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawWave);
+
+// ---------- Bluetooth ----------
+$("connect").addEventListener("click", async () => {
+  try {
+    dev = await navigator.bluetooth.requestDevice({ filters: [{ services: [SVC] }] });
+    dev.addEventListener("gattserverdisconnected", onDisconnected);
+    $("devState").textContent = "Collegamento…";
+    const server = await dev.gatt.connect();
+    const svc = await server.getPrimaryService(SVC);
+    for (const [k, u] of Object.entries({ ctrl: CTRL, data: DATA, status: STATUS, info: INFO }))
+      ch[k] = await svc.getCharacteristic(u);
+    await ch.status.startNotifications();
+    ch.status.addEventListener("characteristicvaluechanged", e => {
+      const v = e.target.value;
+      statusWaiters.splice(0).forEach(fn => fn(v.getUint8(0), v));
+    });
+    try {                                    // presente solo nel firmware v2
+      ch.dl = await svc.getCharacteristic(DL);
+      await ch.dl.startNotifications();
+      ch.dl.addEventListener("characteristicvaluechanged", onDlChunk);
+    } catch { ch.dl = null; }
+    await sleep(500);  // lascia il tempo di negoziare l'MTU
+    info = await readInfo();
+    $("devState").textContent = "Collegato a " + (dev.name || "Tasca Sonora") + (info.hasSound ? "" : " (nessun suono salvato)");
+    $("vol").value = info.volume; $("volVal").textContent = info.volume;
+    $("volBox").classList.remove("hide");
+    $("connect").classList.add("hide");
+    $("disconnect").classList.remove("hide");
+    $("s4").classList.remove("off");
+    showRecInfo();
+    updateSendState();
+  } catch (err) {
+    if (err.name !== "NotFoundError") $("devState").textContent = "Collegamento non riuscito: " + err.message;
+  }
+});
+
+$("disconnect").addEventListener("click", () => dev && dev.gatt.disconnect());
+
+function onDisconnected() {
+  ch = {}; info = null;
+  $("devState").textContent = "Scollegato. Tieni premuto il tasto 2 s per ricollegare.";
+  $("connect").classList.remove("hide");
+  $("disconnect").classList.add("hide");
+  $("volBox").classList.add("hide");
+  $("s4").classList.add("off");
+  $("s5").classList.add("off");
+}
+
+async function readInfo() {
+  const v = await ch.info.readValue();
+  return {
+    mtu: v.getUint16(0, true), maxBytes: v.getUint32(2, true), rate: v.getUint32(6, true),
+    volume: v.getUint8(10), hasSound: v.getUint8(11), received: v.getUint32(12, true),
+    recBytes: v.byteLength >= 20 ? v.getUint32(16, true) : 0
+  };
+}
+
+function waitStatus(ms) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("Il portachiavi non risponde.")), ms);
+    statusWaiters.push((code, view) => { clearTimeout(t); resolve(code, view); lastStatusView = view; });
+  });
+}
+
+const cmd = (...bytes) => ch.ctrl.writeValueWithResponse(new Uint8Array(bytes));
+const u32 = n => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+
+function crc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (const b of bytes) {
+    c ^= b;
+    for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1));
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function updateSendState() {
+  $("send").disabled = !(pcm && ch.ctrl);
+  $("play").disabled = !ch.ctrl;
+}
+
+function say(text, kind = "") { $("msg").textContent = text; $("msg").className = "msg " + kind; }
+
+$("send").addEventListener("click", async () => {
+  if (!pcm || !ch.ctrl) return;
+  $("send").disabled = true;
+  $("prog").style.width = "0%";
+  try {
+    if (pcm.length > info.maxBytes) throw new Error("Il suono è troppo lungo per la memoria del portachiavi.");
+    const ready = waitStatus(4000);
+    await cmd(0x01, ...u32(pcm.length));
+    const r = await ready;
+    if (r !== 0x10) throw new Error(STATUS_TEXT[r] || "Errore " + r);
+
+    const chunk = Math.max(20, Math.min(info.mtu - 3, 240));
+    const t0 = performance.now();
+    say("Invio in corso…");
+    for (let o = 0, n = 0; o < pcm.length; o += chunk, n++) {
+      await ch.data.writeValueWithoutResponse(pcm.subarray(o, o + chunk));
+      if (n % 32 === 31) {  // ogni tanto verifica che il portachiavi stia davvero ricevendo
+        const got = (await readInfo()).received;
+        const sent = Math.min(pcm.length, o + chunk);
+        if (got !== sent) throw new Error("Alcuni pacchetti si sono persi. Avvicina il telefono e invia di nuovo.");
+        $("prog").style.width = (sent / pcm.length * 100).toFixed(1) + "%";
+      }
+    }
+    $("prog").style.width = "100%";
+    const done = waitStatus(8000);
+    await cmd(0x02, ...u32(crc32(pcm)));
+    const s = await done;
+    const secs = ((performance.now() - t0) / 1000).toFixed(1).replace(".", ",");
+    if (s === 0x11) say(`Suono salvato sul portachiavi in ${secs} s. Premi il tasto per sentirlo.`, "ok");
+    else throw new Error(STATUS_TEXT[s] || "Errore " + s);
+  } catch (err) {
+    say(err.message, "err");
+    try { if (ch.ctrl) await cmd(0x05); } catch {}
+  } finally {
+    updateSendState();
+  }
+});
+
+$("play").addEventListener("click", () => ch.ctrl && cmd(0x03).catch(() => {}));
+
+let volTimer;
+$("vol").addEventListener("input", e => {
+  $("volVal").textContent = e.target.value;
+  clearTimeout(volTimer);
+  volTimer = setTimeout(() => ch.ctrl && cmd(0x04, +e.target.value).catch(() => {}), 200);
+});
+
+// ---------- Registrazione ----------
+function showRecInfo() {
+  if (!ch.dl) {
+    $("recInfo").textContent = "Il firmware del portachiavi non supporta la registrazione: carica la versione v2.";
+    return;
+  }
+  $("s5").classList.remove("off");
+  const secs = info.recBytes / 2 / info.rate;
+  $("recInfo").textContent = info.recBytes ? `Registrazione sul portachiavi: ${fmt(secs)}.` : "Nessuna registrazione sul portachiavi.";
+  ["recDownload", "recPlay", "recToSound"].forEach(id => $(id).disabled = !info.recBytes);
+}
+
+function recSay(text, kind = "") { $("recMsg").textContent = text; $("recMsg").className = "msg " + kind; }
+
+function onDlChunk(e) {
+  if (!dlBuf) return;
+  const v = new Uint8Array(e.target.value.buffer, e.target.value.byteOffset, e.target.value.byteLength);
+  const n = Math.min(v.length, dlBuf.length - dlPos);
+  dlBuf.set(v.subarray(0, n), dlPos);
+  dlPos += n;
+  $("recProg").style.width = (dlPos / dlBuf.length * 100).toFixed(1) + "%";
+}
+
+$("recDownload").addEventListener("click", async () => {
+  if (!ch.dl) return;
+  $("recDownload").disabled = true;
+  $("recResult").classList.add("hide");
+  try {
+    info = await readInfo();
+    if (!info.recBytes) throw new Error(STATUS_TEXT[0x25]);
+    dlBuf = new Uint8Array(info.recBytes);
+    dlPos = 0;
+    $("recProg").style.width = "0%";
+    recSay("Ricevo la registrazione…");
+    const t0 = performance.now();
+    const secsExpected = Math.max(20, info.recBytes / 4000);  // tempo massimo generoso
+    const done = waitStatus(secsExpected * 1000);
+    await cmd(0x06);
+    const code = await done;
+    if (code !== 0x12) throw new Error(STATUS_TEXT[code] || "Errore " + code);
+    const crc = lastStatusView.getUint32(1, true);
+    if (dlPos !== dlBuf.length || crc32(dlBuf) !== crc) throw new Error("La registrazione è arrivata incompleta. Avvicina il telefono e riprova.");
+
+    const samples = new Int16Array(dlBuf.buffer.slice(0));
+    const url = URL.createObjectURL(wavBlob(samples, info.rate));
+    const d = new Date(), p = n => String(n).padStart(2, "0");
+    $("recAudio").src = url;
+    $("recLink").href = url;
+    $("recLink").download = `registrazione-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.wav`;
+    $("recResult").classList.remove("hide");
+    const secs = ((performance.now() - t0) / 1000).toFixed(1).replace(".", ",");
+    recSay(`Registrazione ricevuta in ${secs} s.`, "ok");
+  } catch (err) {
+    recSay(err.message, "err");
+  } finally {
+    dlBuf = null;
+    $("recDownload").disabled = false;
+  }
+});
+
+$("recPlay").addEventListener("click", () => ch.ctrl && cmd(0x08).catch(() => {}));
+
+$("recToSound").addEventListener("click", async () => {
+  try {
+    const done = waitStatus(8000);
+    await cmd(0x07);
+    const code = await done;
+    if (code !== 0x13) throw new Error(STATUS_TEXT[code] || "Errore " + code);
+    recSay("Ora il tasto frontale suona la registrazione.", "ok");
+  } catch (err) { recSay(err.message, "err"); }
+});
+</script>
+</body>
+</html>

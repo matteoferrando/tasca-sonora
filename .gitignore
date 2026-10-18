@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# Arduino / build
+build/
+firmware/tasca_sonora/build/
+
+# Xcode / XcodeGen (il progetto si rigenera con `xcodegen generate`)
+ios/*.xcodeproj/
+ios/TascaSonora/Info.plist
+DerivedData/
+xcuserdata/
+
+# collaudo compilato
+tools/bletest
