@@ -1,5 +1,7 @@
 # Tasca Sonora
 
+![Tasca Sonora acceso, in attesa del collegamento Bluetooth](docs/tasca-sonora.webp)
+
 Portachiavi sonoro basato su **M5Stack StickS3** (ESP32-S3, schermo 240×135, altoparlante 1 W,
 microfono, batteria 250 mAh): premi un tasto e suona un suono caricato dal telefono via Bluetooth,
 tieni premuto l'altro e registra.
@@ -135,3 +137,5 @@ carica da file o dal microfono con taglio e anteprima, rinomina, scarica, elimin
 
 Rilasciato con licenza [MIT](LICENSE): puoi usarlo, modificarlo e ridistribuirlo liberamente,
 mantenendo l'avviso di copyright.
+
+Tasca Sonora è un progetto di [Matteo Ferrando](https://matteoferrando.com).
